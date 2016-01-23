@@ -35,10 +35,6 @@
 			}
 		}
 
-		public function actionBgfc() {
-			$this->render('bgfc');
-		}
-
 		/**
 		 * Displays the contact page
 		 */
