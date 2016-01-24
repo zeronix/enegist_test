@@ -1,0 +1,19 @@
+body {
+	background : #eeeeee;
+}
+
+body > div.container {
+	background : white;
+}
+
+table.table thead tr th {
+	text-align : center;
+}
+
+.form-group.check-out * {
+	color: limegreen;
+}
+
+.form-group.due-date * {
+	color: orange;
+}

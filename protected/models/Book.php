@@ -99,4 +99,8 @@ class Book extends CActiveRecord
 	{
 		return parent::model($className);
 	}
+
+	public function getBook() {
+		return "$this->title | $this->author";
+	}
 }

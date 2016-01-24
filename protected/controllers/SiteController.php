@@ -1,6 +1,8 @@
 <?php
 
 	class SiteController extends Controller {
+		var $breadcrumbs = array('เช่ายืม' => array('/'));
+
 		/**
 		 * Declares class-based actions.
 		 */
@@ -20,7 +22,105 @@
 		}
 
 		public function actionIndex() {
-			$this->render('index');
+			$this->breadcrumbs = array();
+			// borrowed books list
+			$model = Borrow::model()->findAll();
+			$this->render(
+				'index',
+				array(
+					'model' => $model,
+				)
+			);
+		}
+
+		public function actionAdmin($id = null) {
+			/**
+			 * @var $model           Borrow
+			 */
+			$model = new Borrow();
+			if ($id) {
+				$model = Borrow::model()->findByPk($id);
+			}
+			$condition['profile'] = null;
+			$condition['book'] = null;
+			// if profile borrows 3 books, out.
+			$profile_criteria            = new CDbCriteria();
+			$profile_criteria->select    = 'profile_id';
+			$profile_criteria->condition = 'return_date IS NULL';
+			$profile_criteria->group     = 'profile_id';
+			$profile_criteria->having    = 'COUNT(profile_id) = 3';
+			$exceed                      = Borrow::model()->findAll($profile_criteria);
+			$exclude                     = array();
+			foreach ($exceed as $profile) {
+				$exclude[] = $profile->profile_id;
+			}
+			if($exclude) {
+				$condition['profile'] = 'id not in (' . implode(',', $exclude) . ')';
+			}
+			$profiles = Profile::model()->findAll($condition['profile']);
+			// if book is not returned, cannot borrow
+			$book_criteria               = new CDbCriteria();
+			$book_criteria->select = 'book_id';
+			$book_criteria->condition = 'return_date IS NULL';
+			$unavailable_books = Borrow::model()->findAll($book_criteria);
+			$exclude = array();
+			foreach($unavailable_books as $book) {
+				$exclude[] = $book->book_id;
+			}
+			if($exclude) {
+				$condition['book'] = 'id not in (' . implode(',', $exclude) . ')';
+			}
+			$books  = Book::model()->findAll($condition['book']);
+			$alerts = array();
+			if ($_POST) {
+				$tmp                   = $_POST;
+				$borrow                = $tmp['Borrow'];
+				$saveType              = $tmp['save'];
+				$model->attributes     = $borrow;
+				$model->check_out_date = date('Y-m-d');
+				$model->due_date       = date('Y-m-d', strtotime('+7 day'));
+				$isNew                 = false;
+				if (!$model->id) {
+					$isNew = true;
+				}
+				if ($model->save()) {
+					$alerts['success']['Borrow'] = 'บันทึกข้อมูลการยืมหนังสือเรียบร้อยแล้ว';
+				} else {
+					$alerts['danger']['Borrow'] = $model->errors;
+				}
+				if (!isset($alerts['danger'])) {
+					if ($saveType === 'SaveAndNew') {
+						$this->redirect($this->createUrl('admin'));
+					} else {
+						if ($isNew) {
+							$this->redirect($this->createUrl('admin', array('id' => $model->id)));
+						}
+					}
+				}
+			}
+			$this->render(
+				'admin',
+				array(
+					'model'    => $model,
+					'profiles' => $profiles,
+					'books'    => $books,
+					'alerts'   => $alerts,
+				)
+			);
+		}
+
+		public function actionReturn($id) {
+			/**
+			 * @var $model    Borrow
+			 */
+			$model              = Borrow::model()->findByPk($id);
+			$model->return_date = date('Y-m-d');
+			$model->save();
+			if (strtotime($model->return_date) > strtotime($model->due_date)) {
+				echo 'bad';
+			} else {
+				echo 'good';
+			}
 		}
 
 		/**
